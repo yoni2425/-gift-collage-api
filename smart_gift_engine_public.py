@@ -15,7 +15,11 @@ from collections import deque
 import math
 from itertools import combinations
 from typing import List, Dict, Tuple
+from rembg import remove
 
+def remove_background_smart(img):
+    """הסרת רקע מושלמת עם AI"""
+    return remove(img)
 app = Flask(__name__)
 CORS(app)
 
@@ -241,65 +245,65 @@ def generate_explanation(basket: Dict, criteria: Dict) -> str:
 # Background Removal & Professional Collage
 # ==========================================
 
-def remove_background_smart(img):
-    """הסרת רקע משופרת עם ניקוי קצוות"""
-    img = img.convert("RGBA")
-    width, height = img.size
-    pixels = img.load()
+# def remove_background_smart(img):
+#     """הסרת רקע משופרת עם ניקוי קצוות"""
+#     img = img.convert("RGBA")
+#     width, height = img.size
+#     pixels = img.load()
     
-    mask = Image.new('L', (width, height), 255)
-    mask_pixels = mask.load()
+#     mask = Image.new('L', (width, height), 255)
+#     mask_pixels = mask.load()
     
-    # דגימת רקע מהשוליים
-    edge_colors = []
-    for x in range(width):
-        edge_colors.append(pixels[x, 0][:3])
-        edge_colors.append(pixels[x, height-1][:3])
-    for y in range(height):
-        edge_colors.append(pixels[0, y][:3])
-        edge_colors.append(pixels[width-1, y][:3])
+#     # דגימת רקע מהשוליים
+#     edge_colors = []
+#     for x in range(width):
+#         edge_colors.append(pixels[x, 0][:3])
+#         edge_colors.append(pixels[x, height-1][:3])
+#     for y in range(height):
+#         edge_colors.append(pixels[0, y][:3])
+#         edge_colors.append(pixels[width-1, y][:3])
     
-    avg_bg = tuple(sum(c[i] for c in edge_colors) // len(edge_colors) for i in range(3))
+#     avg_bg = tuple(sum(c[i] for c in edge_colors) // len(edge_colors) for i in range(3))
     
-    # Flood fill משופר
-    visited = set()
-    queue = deque()
+#     # Flood fill משופר
+#     visited = set()
+#     queue = deque()
     
-    corners_and_edges = [
-        (0, 0), (width-1, 0), (0, height-1), (width-1, height-1),
-        (width//2, 0), (width//2, height-1),
-        (0, height//2), (width-1, height//2)
-    ]
-    queue.extend(corners_and_edges)
+#     corners_and_edges = [
+#         (0, 0), (width-1, 0), (0, height-1), (width-1, height-1),
+#         (width//2, 0), (width//2, height-1),
+#         (0, height//2), (width-1, height//2)
+#     ]
+#     queue.extend(corners_and_edges)
     
-    threshold = 65  # אגרסיבי יותר
+#     threshold = 65  # אגרסיבי יותר
     
-    while queue and len(visited) < width * height // 2:
-        if not queue:
-            break
-        x, y = queue.popleft()
+#     while queue and len(visited) < width * height // 2:
+#         if not queue:
+#             break
+#         x, y = queue.popleft()
         
-        if (x, y) in visited or x < 0 or x >= width or y < 0 or y >= height:
-            continue
+#         if (x, y) in visited or x < 0 or x >= width or y < 0 or y >= height:
+#             continue
         
-        visited.add((x, y))
+#         visited.add((x, y))
         
-        r, g, b = pixels[x, y][:3]
-        diff = abs(r - avg_bg[0]) + abs(g - avg_bg[1]) + abs(b - avg_bg[2])
+#         r, g, b = pixels[x, y][:3]
+#         diff = abs(r - avg_bg[0]) + abs(g - avg_bg[1]) + abs(b - avg_bg[2])
         
-        if diff < threshold:
-            mask_pixels[x, y] = 0
-            for dx, dy in [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,-1), (1,-1), (-1,1)]:
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in visited:
-                    queue.append((nx, ny))
+#         if diff < threshold:
+#             mask_pixels[x, y] = 0
+#             for dx, dy in [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,-1), (1,-1), (-1,1)]:
+#                 nx, ny = x + dx, y + dy
+#                 if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in visited:
+#                     queue.append((nx, ny))
     
-    img.putalpha(mask)
-    alpha = img.split()[3]
-    alpha = alpha.filter(ImageFilter.GaussianBlur(2))  # blur חזק יותר
-    img.putalpha(alpha)
+#     img.putalpha(mask)
+#     alpha = img.split()[3]
+#     alpha = alpha.filter(ImageFilter.GaussianBlur(2))  # blur חזק יותר
+#     img.putalpha(alpha)
     
-    return img
+#     return img
 
 def arrange_center_out(items):
     """סידור מרכז-החוצה - הגבוה באמצע"""
