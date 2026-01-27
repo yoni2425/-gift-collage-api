@@ -1,12 +1,13 @@
 """
-🎁 Smart Gift Basket Recommendation Engine - Public Sheets Version
-גרסה פשוטה שקורא מ-Google Sheets ציבורי ללא credentials
+🎁 Smart Gift Basket Recommendation Engine - Professional Studio Version
+מנוע המלצות חכם למארזי מתנות עם איכות אולפן מקצועית
 """
 
 import io
 import base64
 import requests
 import csv
+import random
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image, ImageFilter, ImageEnhance, ImageDraw
@@ -32,26 +33,21 @@ SHEET_NAME = "CLOD"
 # ==========================================
 
 def get_products_from_public_sheet(spreadsheet_id, sheet_name="CLOD"):
-    """
-    קורא מוצרים מ-Google Sheets ציבורי (ללא credentials!)
-    """
-    # URL לקריאת שיטס ציבורי כ-CSV
+    """קורא מוצרים מ-Google Sheets ציבורי"""
     csv_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
     
-    print(f"📊 קורא מהשיטס: {csv_url[:80]}...")
+    print(f"📊 קורא מהשיטס...")
     
     try:
         response = requests.get(csv_url, timeout=10)
         response.raise_for_status()
         
-        # Parse CSV
         csv_data = response.content.decode('utf-8')
         reader = csv.DictReader(io.StringIO(csv_data))
         
         products = []
         for row in reader:
             try:
-                # דלג על שורות ריקות
                 if not row.get('product_id') or not row.get('name'):
                     continue
                 
@@ -82,11 +78,11 @@ def get_products_from_public_sheet(spreadsheet_id, sheet_name="CLOD"):
                 print(f"⚠️ שגיאה בשורה: {e}")
                 continue
         
-        print(f"✅ נטענו {len(products)} מוצרים מהשיטס")
+        print(f"✅ נטענו {len(products)} מוצרים")
         return products
         
     except Exception as e:
-        print(f"❌ שגיאה בקריאת השיטס: {e}")
+        print(f"❌ שגיאה: {e}")
         raise Exception(f"לא ניתן לקרוא מהשיטס: {str(e)}")
 
 # ==========================================
@@ -135,7 +131,7 @@ def calculate_match_score(product: Dict, criteria: Dict) -> Tuple[int, List[str]
 def find_best_basket(products: List[Dict], criteria: Dict) -> Dict:
     """מוצא את המארז הטוב ביותר"""
     budget_min = criteria.get('budget_min', 0)
-    budget_max = criteria.get('budget_max', 999999)
+    budget_max = criteria.get('budget_max', 10000)
     size = criteria.get('size', 'medium')
     
     if size == 'small':
@@ -242,23 +238,20 @@ def generate_explanation(basket: Dict, criteria: Dict) -> str:
     return explanation
 
 # ==========================================
-# Background Removal & Collage (זהה לקוד הקודם)
+# Background Removal & Professional Collage
 # ==========================================
 
 def remove_background_smart(img):
-    """הסרת רקע משופרת עם edge detection"""
+    """הסרת רקע משופרת עם ניקוי קצוות"""
     img = img.convert("RGBA")
     width, height = img.size
     pixels = img.load()
     
-    # יצירת מסכה
     mask = Image.new('L', (width, height), 255)
     mask_pixels = mask.load()
     
-    # דגימת רקע מהשוליים - יותר נקודות!
+    # דגימת רקע מהשוליים
     edge_colors = []
-    
-    # כל השוליים (לא רק דגימה)
     for x in range(width):
         edge_colors.append(pixels[x, 0][:3])
         edge_colors.append(pixels[x, height-1][:3])
@@ -266,23 +259,20 @@ def remove_background_smart(img):
         edge_colors.append(pixels[0, y][:3])
         edge_colors.append(pixels[width-1, y][:3])
     
-    # חישוב צבע רקע ממוצע
     avg_bg = tuple(sum(c[i] for c in edge_colors) // len(edge_colors) for i in range(3))
     
-    # Flood fill משופר מכל 4 הפינות
+    # Flood fill משופר
     visited = set()
     queue = deque()
     
-    # התחל מכל הפינות ומרכזי הצדדים
     corners_and_edges = [
-        (0, 0), (width-1, 0), (0, height-1), (width-1, height-1),  # פינות
-        (width//2, 0), (width//2, height-1),  # מרכז עליון/תחתון
-        (0, height//2), (width-1, height//2)   # מרכז שמאל/ימין
+        (0, 0), (width-1, 0), (0, height-1), (width-1, height-1),
+        (width//2, 0), (width//2, height-1),
+        (0, height//2), (width-1, height//2)
     ]
     queue.extend(corners_and_edges)
     
-    # סף יותר אגרסיבי להסרת רקע
-    threshold = 60  # הגבר מ-45 ל-60
+    threshold = 65  # אגרסיבי יותר
     
     while queue and len(visited) < width * height // 2:
         if not queue:
@@ -299,24 +289,20 @@ def remove_background_smart(img):
         
         if diff < threshold:
             mask_pixels[x, y] = 0
-            # בדוק את כל 8 השכנים (לא רק 4)
             for dx, dy in [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,-1), (1,-1), (-1,1)]:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in visited:
                     queue.append((nx, ny))
     
-    # החל מסכה
     img.putalpha(mask)
-    
-    # Blur קל לקצוות רכים יותר
     alpha = img.split()[3]
-    alpha = alpha.filter(ImageFilter.GaussianBlur(1.5))  # הגבר מ-0.5
+    alpha = alpha.filter(ImageFilter.GaussianBlur(2))  # blur חזק יותר
     img.putalpha(alpha)
     
     return img
 
 def arrange_center_out(items):
-    """סידור מרכז-החוצה"""
+    """סידור מרכז-החוצה - הגבוה באמצע"""
     if not items:
         return []
     items_sorted = sorted(items, key=lambda x: x.height, reverse=True)
@@ -332,7 +318,7 @@ def arrange_center_out(items):
     return left + center + right
 
 def create_professional_collage(basket: Dict) -> Image:
-    """יוצר קולאז' מקצועי"""
+    """יצירת קולאז' אולפני מקצועי"""
     products = basket['products']
     images_data = []
     headers = {'User-Agent': 'Mozilla/5.0'}
@@ -344,32 +330,26 @@ def create_professional_collage(basket: Dict) -> Image:
     for product in products:
         try:
             url = product['image_url']
-            print(f"   🔗 מוריד: {url[:60]}...")
+            print(f"   🔗 {product['name'][:30]}...")
             
             img_resp = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
-            
-            print(f"      Status: {img_resp.status_code}")
             
             if img_resp.status_code == 200:
                 img = Image.open(io.BytesIO(img_resp.content))
                 images_data.append((img, product['height_cm']))
-                print(f"      ✅ הצלחה!")
+                print(f"      ✅")
             else:
-                error_msg = f"{product['name']}: HTTP {img_resp.status_code}"
-                download_errors.append(error_msg)
-                print(f"      ❌ {error_msg}")
+                download_errors.append(f"{product['name']}: HTTP {img_resp.status_code}")
                 
         except Exception as e:
-            error_msg = f"{product['name']}: {str(e)}"
-            download_errors.append(error_msg)
-            print(f"      ❌ {error_msg}")
+            download_errors.append(f"{product['name']}: {str(e)}")
             continue
     
     if not images_data:
-        error_details = "\n".join(download_errors[:5])  # רק 5 ראשונות
-        raise ValueError(f"לא הצלחתי להוריד תמונות.\n\nשגיאות:\n{error_details}\n\nבדקי:\n1. שה-URLs תקינים\n2. שהם מצביעים ישירות לתמונה (jpg/png)\n3. שהשרת מאפשר גישה")
+        error_details = "\n".join(download_errors[:5])
+        raise ValueError(f"לא הצלחתי להוריד תמונות.\n\n{error_details}")
     
-    print(f"🎨 מעבד תמונות...")
+    print(f"🎨 מעבד {len(images_data)} תמונות...")
     
     processed_images = []
     for img, height_cm in images_data:
@@ -392,6 +372,9 @@ def create_professional_collage(basket: Dict) -> Image:
     if not processed_images:
         raise ValueError("לא עובדו תמונות")
     
+    print(f"🎯 מסדר {len(processed_images)} מוצרים בפירמידה...")
+    
+    # סידור בפירמידה
     processed_images.sort(key=lambda x: x.height, reverse=True)
     count = len(processed_images)
     
@@ -407,24 +390,56 @@ def create_professional_collage(basket: Dict) -> Image:
     
     arranged_rows = [arrange_center_out(row) for row in rows]
     
+    # חישוב גודל קנבס
     max_h = processed_images[0].height
     total_w = sum(img.width for img in processed_images)
     canvas_w = int(total_w * 1.5) + 600
-    canvas_h = int(max_h * len(arranged_rows) * 1.2) + 400
+    canvas_h = int(max_h * len(arranged_rows) * 1.3) + 500
     
-    # רקע גרדיאנט אולפני יוקרתי
-    final_bg = Image.new("RGB", (canvas_w, canvas_h), (255, 255, 255))
+    print(f"🎬 יוצר רקע אולפני...")
     
-    # יצירת גרדיאנט עדין מלבן לאפור
+    # ==========================================
+    # רקע אולפני מקצועי עם תאורה ריאליסטית
+    # ==========================================
+    
+    final_bg = Image.new("RGB", (canvas_w, canvas_h), (248, 248, 250))
+    
+    # גרדיאנט רדיאלי (ספוטלייט)
+    center_x_light = canvas_w // 2
+    center_y_light = canvas_h * 0.3
+    max_radius = math.sqrt((canvas_w/2)**2 + (canvas_h)**2)
+    
     for y in range(canvas_h):
-        gray_value = 255 - int((y / canvas_h) * 20)  # גרדיאנט עדין
         for x in range(canvas_w):
-            final_bg.putpixel((x, y), (gray_value, gray_value, gray_value + 2))
+            dist = math.sqrt((x - center_x_light)**2 + (y - center_y_light)**2)
+            brightness = 1 - (dist / max_radius) * 0.2
+            base = 248
+            val = int(base * brightness)
+            final_bg.putpixel((x, y), (val, val, val + 2))
     
-    draw = ImageDraw.Draw(final_bg)
+    # מרקם עדין
+    random.seed(42)
+    for y in range(0, canvas_h, 2):
+        for x in range(0, canvas_w, 2):
+            if random.random() < 0.25:
+                current = final_bg.getpixel((x, y))
+                noise = random.randint(-3, 3)
+                new_val = max(0, min(255, current[0] + noise))
+                final_bg.putpixel((x, y), (new_val, new_val, new_val + 1))
+    
+    final_bg = final_bg.filter(ImageFilter.GaussianBlur(radius=2))
+    
+    print(f"💫 מוסיף צללים ריאליסטיים...")
+    
+    # ==========================================
+    # סידור מוצרים עם צללים טבעיים
+    # ==========================================
+    
+    # שכבת צללים
+    shadow_layer = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
     
     center_x = canvas_w // 2
-    floor_y = canvas_h - 80
+    floor_y = canvas_h - 100
     OVERLAP = 0.09
     DEPTH = 0.88
     
@@ -444,7 +459,7 @@ def create_professional_collage(basket: Dict) -> Image:
             total_row_w -= int(scaled_row[0].width * OVERLAP) * (len(scaled_row) - 1)
         
         current_x = center_x - total_row_w // 2
-        row_y_offset = row_idx * 15
+        row_y_offset = row_idx * 25
         
         for prod in scaled_row:
             py = floor_y - prod.height + row_y_offset
@@ -452,38 +467,46 @@ def create_professional_collage(basket: Dict) -> Image:
             
             all_positions.append({'img': prod, 'x': px, 'y': int(py)})
             
-            # צל מקצועי וחזק יותר
-            shadow_cx = px + prod.width // 2
-            shadow_cy = int(py) + prod.height + 8  # הגבר offset
-            shadow_w = int(prod.width * 0.85)  # הרחב צל
-            shadow_h = int(prod.height * 0.25)  # הגבה צל
+            # צל ריאליסטי מהמוצר
+            shadow = prod.copy()
+            shadow_data = []
+            for item in shadow.getdata():
+                if len(item) == 4:
+                    shadow_data.append((20, 20, 20, int(item[3] * 0.35)))
+                else:
+                    shadow_data.append((20, 20, 20, 80))
+            shadow.putdata(shadow_data)
             
-            # 15 שכבות לצל עמוק יותר
-            for i in range(15):
-                gray = 230 - i * 8  # צללים כהים יותר
-                spread = i * 2.5
-                draw.ellipse([
-                    shadow_cx - shadow_w//2 - spread + 15,
-                    shadow_cy - shadow_h//2 - spread + 12,
-                    shadow_cx + shadow_w//2 + spread + 15,
-                    shadow_cy + shadow_h//2 + spread + 12
-                ], fill=(gray, gray, gray))
+            # הטיית הצל
+            shadow_w = int(prod.width * 1.05)
+            shadow_h = int(prod.height * 0.25)
+            shadow = shadow.resize((shadow_w, shadow_h), Image.LANCZOS)
+            
+            # הדבקת צל
+            shadow_x = px + 18
+            shadow_y = py + prod.height + 15
+            shadow_layer.paste(shadow, (shadow_x, shadow_y), shadow)
             
             current_x += prod.width - int(prod.width * OVERLAP)
     
-    # טשטוש עמוק לצללים רכים
-    final_bg = final_bg.filter(ImageFilter.GaussianBlur(radius=22))
+    # טשטוש צללים
+    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=28))
     
+    # שילוב
+    final_bg.paste(shadow_layer, (0, 0), shadow_layer)
+    
+    # הדבקת מוצרים
     for pos in all_positions:
         final_bg.paste(pos['img'], (pos['x'], pos['y']), pos['img'])
     
+    # חיתוך
     temp_alpha = Image.new("L", (canvas_w, canvas_h), 0)
     for pos in all_positions:
         temp_alpha.paste(pos['img'].split()[3], (pos['x'], pos['y']))
     
     bbox = temp_alpha.getbbox()
     if bbox:
-        margin = 100
+        margin = 120
         crop_box = (
             max(0, bbox[0] - margin),
             max(0, bbox[1] - margin),
@@ -492,14 +515,18 @@ def create_professional_collage(basket: Dict) -> Image:
         )
         final_bg = final_bg.crop(crop_box)
     
-    # שיפורי תמונה מקצועיים
-    final_bg = ImageEnhance.Contrast(final_bg).enhance(1.25)  # הגבר קונטרסט
-    final_bg = ImageEnhance.Sharpness(final_bg).enhance(1.35)  # הגבר חדות
-    final_bg = ImageEnhance.Brightness(final_bg).enhance(1.08)  # הבהר קצת
-    final_bg = ImageEnhance.Color(final_bg).enhance(1.15)  # הגבר צבעים
+    print(f"✨ שיפורים...")
+    
+    # שיפורי תמונה
+    final_bg = ImageEnhance.Contrast(final_bg).enhance(1.18)
+    final_bg = ImageEnhance.Sharpness(final_bg).enhance(1.22)
+    final_bg = ImageEnhance.Brightness(final_bg).enhance(1.04)
+    final_bg = ImageEnhance.Color(final_bg).enhance(1.12)
     
     if final_bg.width > 2000 or final_bg.height > 2000:
         final_bg.thumbnail((2000, 2000), Image.LANCZOS)
+    
+    print(f"🎉 מארז מוכן!")
     
     return final_bg
 
@@ -511,9 +538,9 @@ def create_professional_collage(basket: Dict) -> Image:
 def home():
     return jsonify({
         "status": "running",
-        "service": "Smart Gift Basket Recommendation Engine",
-        "version": "2.0 - Public Sheets",
-        "note": "גרסה שקורא מ-Google Sheets ציבורי"
+        "service": "Smart Gift Basket Engine - Professional Studio",
+        "version": "3.0",
+        "features": ["AI recommendations", "Professional collages", "Realistic shadows"]
     })
 
 @app.route('/health', methods=['GET'])
@@ -526,9 +553,7 @@ def health():
 
 @app.route('/recommend-basket', methods=['POST'])
 def recommend_basket():
-    """
-    נקודת הקצה הראשית
-    """
+    """נקודת קצה ראשית"""
     try:
         data = request.get_json()
         
@@ -539,22 +564,20 @@ def recommend_basket():
         sheet_name = data.get('sheet_name', SHEET_NAME)
         
         print(f"\n{'='*60}")
-        print(f"🎁 מתחיל המלצה חכמה למארז")
+        print(f"🎁 מתחיל המלצה חכמה")
         print(f"{'='*60}\n")
         
-        # קריאת מוצרים
         products = get_products_from_public_sheet(spreadsheet_id, sheet_name)
         
         if not products:
             return jsonify({
-                "error": "לא נמצאו מוצרים בשיטס",
-                "hint": "ודאי שהשיטס משותף ציבורית (Anyone with link)"
+                "error": "לא נמצאו מוצרים",
+                "hint": "ודאי שהשיטס משותף ציבורית"
             }), 404
         
-        # קריטריונים
         criteria = {
-            'budget_min': data.get('budget_min', 0),  # אפס מינימום!
-            'budget_max': data.get('budget_max', 10000),  # 10K מקסימום
+            'budget_min': data.get('budget_min', 0),
+            'budget_max': data.get('budget_max', 10000),
             'occasion': data.get('occasion'),
             'recipient_type': data.get('recipient_type'),
             'style': data.get('style'),
@@ -563,39 +586,34 @@ def recommend_basket():
             'size': data.get('size', 'medium')
         }
         
-        print(f"🔍 מחפש מארז אופטימלי...")
+        print(f"🔍 מחפש מארז...")
         print(f"   תקציב: ₪{criteria['budget_min']}-₪{criteria['budget_max']}")
         print(f"   מוצרים זמינים: {len(products)}")
         
-        # מציאת מארז
         basket = find_best_basket(products, criteria)
         
         if not basket:
-            # Debug: למה לא נמצא מארז?
-            min_possible = min(p['price'] for p in products) * MARGIN_MULTIPLIER * 3  # 3 מוצרים מינימום
+            min_possible = min(p['price'] for p in products) * MARGIN_MULTIPLIER * 3
             max_possible = sum(sorted([p['price'] for p in products], reverse=True)[:7]) * MARGIN_MULTIPLIER
             
             debug_info = {
                 "error": "לא נמצא מארז מתאים",
-                "suggestion": "נסי להרחיב את התקציב או לשנות את הקריטריונים",
+                "suggestion": "נסי להרחיב את התקציב",
                 "debug": {
                     "products_available": len(products),
                     "budget_requested": f"₪{criteria['budget_min']}-₪{criteria['budget_max']}",
-                    "cheapest_possible_basket": f"₪{min_possible:.2f}",
-                    "most_expensive_possible": f"₪{max_possible:.2f}",
-                    "criteria": criteria
+                    "cheapest_possible": f"₪{min_possible:.2f}",
+                    "most_expensive_possible": f"₪{max_possible:.2f}"
                 }
             }
             
             return jsonify(debug_info), 404
         
-        print(f"✅ נמצא מארז! מוצרים: {len(basket['products'])}, מחיר: ₪{basket['final_price']}\n")
+        print(f"✅ מארז נמצא! {len(basket['products'])} מוצרים, ₪{basket['final_price']}\n")
         
-        # הסבר
         explanation = generate_explanation(basket, criteria)
         
-        # תמונה
-        print(f"🎨 יוצר תמונה...\n")
+        print(f"🎨 יוצר תמונה מקצועית...\n")
         collage_image = create_professional_collage(basket)
         
         buf = io.BytesIO()
