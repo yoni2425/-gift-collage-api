@@ -590,7 +590,13 @@ def recommend_basket():
                 "score": basket['score']
             },
             "collage_image": image_data_url,
-            "explanation": explanation
+            "explanation": explanation,
+            "metadata": {
+                "total_products_searched": len(products),
+                "categories_in_basket": basket['categories'],
+                "colors_in_basket": basket['colors'],
+                "processing_time": "⚡ מהיר!"
+            }
         }
         
         print(f"\n{'='*60}")
