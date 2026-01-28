@@ -19,7 +19,7 @@ from typing import List, Dict, Tuple
 app = Flask(__name__)
 CORS(app)
 
-PIXELS_PER_CM = 15
+PIXELS_PER_CM = 12  # הקטן מ-15 ל-12 = מוצרים קטנים ב-20%
 MARGIN_MULTIPLIER = 1.3
 DEFAULT_SPREADSHEET_ID = "1H_kbTq9-yGBYt3DD7yYLUpT-PnnnJLR6AVgJ3IRJ_V0"
 SHEET_NAME = "CLOD"
@@ -308,17 +308,34 @@ def create_professional_collage(basket: Dict) -> Image:
             url = product['image_url']
             print(f"   🔗 {product['name'][:30]}...")
             
-            img_resp = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
+            # טיפול טוב יותר ב-redirects ו-timeouts
+            img_resp = requests.get(
+                url, 
+                headers=headers, 
+                timeout=20,  # יותר זמן
+                allow_redirects=True,  # אפשר redirects
+                stream=True  # יעיל יותר
+            )
             
             if img_resp.status_code == 200:
-                img = Image.open(io.BytesIO(img_resp.content))
-                images_data.append((img, product['height_cm'], product['name']))
-                print(f"      ✅")
+                try:
+                    img = Image.open(io.BytesIO(img_resp.content))
+                    images_data.append((img, product['height_cm'], product['name']))
+                    print(f"      ✅")
+                except Exception as img_error:
+                    print(f"      ❌ שגיאה בפענוח תמונה: {str(img_error)[:50]}")
+                    continue
             else:
                 print(f"      ❌ HTTP {img_resp.status_code}")
                 
+        except requests.exceptions.TooManyRedirects:
+            print(f"      ❌ יותר מדי redirects")
+            continue
+        except requests.exceptions.Timeout:
+            print(f"      ❌ timeout")
+            continue
         except Exception as e:
-            print(f"      ❌ {str(e)}")
+            print(f"      ❌ {str(e)[:50]}")
             continue
     
     if not images_data:
@@ -436,27 +453,30 @@ def create_professional_collage(basket: Dict) -> Image:
             
             all_positions.append({'img': prod, 'x': px, 'y': int(py)})
             
-            # צל עדין יותר
+            # צל טבעי יותר
             shadow = prod.copy()
             shadow_data = []
             for item in shadow.getdata():
                 if len(item) == 4:
-                    shadow_data.append((30, 30, 30, int(item[3] * 0.25)))  # עדין יותר
+                    # צל כהה יותר (40% במקום 25%)
+                    shadow_data.append((20, 20, 20, int(item[3] * 0.40)))
                 else:
-                    shadow_data.append((30, 30, 30, 60))
+                    shadow_data.append((20, 20, 20, 100))
             shadow.putdata(shadow_data)
             
-            shadow_w = int(prod.width * 0.95)  # קטן יותר
-            shadow_h = int(prod.height * 0.2)
+            # צל גדול יותר ונמוך יותר
+            shadow_w = int(prod.width * 1.0)  # רוחב מלא
+            shadow_h = int(prod.height * 0.25)
             shadow = shadow.resize((shadow_w, shadow_h), Image.LANCZOS)
             
-            shadow_x = px + 12
-            shadow_y = py + prod.height + 10
+            # מיקום צל - יותר למטה
+            shadow_x = px + 8
+            shadow_y = py + prod.height + 15
             shadow_layer.paste(shadow, (shadow_x, shadow_y), shadow)
             
             current_x += prod.width - int(prod.width * OVERLAP)
     
-    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=20))  # פחות טשטוש
+    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=25))  # טשטוש חזק יותר
     final_bg.paste(shadow_layer, (0, 0), shadow_layer)
     
     for pos in all_positions:
@@ -469,7 +489,7 @@ def create_professional_collage(basket: Dict) -> Image:
     
     bbox = temp_alpha.getbbox()
     if bbox:
-        margin = 150  # מרווח גדול יותר!
+        margin = 180  # הגדל מרווח מ-150 ל-180
         crop_box = (
             max(0, bbox[0] - margin),
             max(0, bbox[1] - margin),
@@ -487,8 +507,8 @@ def create_professional_collage(basket: Dict) -> Image:
     final_bg = ImageEnhance.Color(final_bg).enhance(1.08)  # פחות
     
     # גודל מקסימלי קטן יותר
-    if final_bg.width > 1400 or final_bg.height > 1400:
-        final_bg.thumbnail((1400, 1400), Image.LANCZOS)
+    if final_bg.width > 1200 or final_bg.height > 1200:
+        final_bg.thumbnail((1200, 1200), Image.LANCZOS)
     
     print(f"🎉 מארז מוכן!")
     
