@@ -1,6 +1,6 @@
 """
-🎁 Smart Gift Basket Recommendation Engine - Professional Studio Version
-מנוע המלצות חכם למארזי מתנות עם איכות אולפן מקצועית
+🎁 Smart Gift Basket Recommendation Engine - Fast & Professional
+מנוע המלצות מהיר עם הסרת רקע מתקדמת ללא AI
 """
 
 import io
@@ -15,11 +15,7 @@ from collections import deque
 import math
 from itertools import combinations
 from typing import List, Dict, Tuple
-from rembg import remove
 
-def remove_background_smart(img):
-    """הסרת רקע מושלמת עם AI"""
-    return remove(img)
 app = Flask(__name__)
 CORS(app)
 
@@ -242,68 +238,120 @@ def generate_explanation(basket: Dict, criteria: Dict) -> str:
     return explanation
 
 # ==========================================
-# Background Removal & Professional Collage
+# הסרת רקע מהירה ומתקדמת
 # ==========================================
 
-# def remove_background_smart(img):
-#     """הסרת רקע משופרת עם ניקוי קצוות"""
-#     img = img.convert("RGBA")
-#     width, height = img.size
-#     pixels = img.load()
+def remove_background_advanced(img):
+    """
+    הסרת רקע מתקדמת - מהירה ויעילה!
+    ✅ ממלא חורים פנימיים
+    ✅ מנקה רק רקע חיצוני
+    ✅ קצוות חלקים
+    """
+    img = img.convert("RGBA")
+    width, height = img.size
+    pixels = img.load()
     
-#     mask = Image.new('L', (width, height), 255)
-#     mask_pixels = mask.load()
+    # יצירת מסכה
+    mask = Image.new('L', (width, height), 255)
+    mask_pixels = mask.load()
     
-#     # דגימת רקע מהשוליים
-#     edge_colors = []
-#     for x in range(width):
-#         edge_colors.append(pixels[x, 0][:3])
-#         edge_colors.append(pixels[x, height-1][:3])
-#     for y in range(height):
-#         edge_colors.append(pixels[0, y][:3])
-#         edge_colors.append(pixels[width-1, y][:3])
+    # דגימת צבע רקע מהשוליים
+    edge_colors = []
+    for x in range(width):
+        edge_colors.append(pixels[x, 0][:3])
+        edge_colors.append(pixels[x, height-1][:3])
+    for y in range(height):
+        edge_colors.append(pixels[0, y][:3])
+        edge_colors.append(pixels[width-1, y][:3])
     
-#     avg_bg = tuple(sum(c[i] for c in edge_colors) // len(edge_colors) for i in range(3))
+    avg_bg = tuple(sum(c[i] for c in edge_colors) // len(edge_colors) for i in range(3))
     
-#     # Flood fill משופר
-#     visited = set()
-#     queue = deque()
+    # Flood fill מהשוליים
+    visited = set()
+    queue = deque()
     
-#     corners_and_edges = [
-#         (0, 0), (width-1, 0), (0, height-1), (width-1, height-1),
-#         (width//2, 0), (width//2, height-1),
-#         (0, height//2), (width-1, height//2)
-#     ]
-#     queue.extend(corners_and_edges)
+    for x in range(width):
+        queue.append((x, 0))
+        queue.append((x, height-1))
+    for y in range(height):
+        queue.append((0, y))
+        queue.append((width-1, y))
     
-#     threshold = 65  # אגרסיבי יותר
+    threshold = 60
     
-#     while queue and len(visited) < width * height // 2:
-#         if not queue:
-#             break
-#         x, y = queue.popleft()
+    while queue:
+        x, y = queue.popleft()
         
-#         if (x, y) in visited or x < 0 or x >= width or y < 0 or y >= height:
-#             continue
+        if x < 0 or x >= width or y < 0 or y >= height:
+            continue
+        if (x, y) in visited:
+            continue
         
-#         visited.add((x, y))
+        visited.add((x, y))
         
-#         r, g, b = pixels[x, y][:3]
-#         diff = abs(r - avg_bg[0]) + abs(g - avg_bg[1]) + abs(b - avg_bg[2])
+        r, g, b = pixels[x, y][:3]
+        diff = abs(r - avg_bg[0]) + abs(g - avg_bg[1]) + abs(g - avg_bg[2])
         
-#         if diff < threshold:
-#             mask_pixels[x, y] = 0
-#             for dx, dy in [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,-1), (1,-1), (-1,1)]:
-#                 nx, ny = x + dx, y + dy
-#                 if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in visited:
-#                     queue.append((nx, ny))
+        if diff < threshold:
+            mask_pixels[x, y] = 0
+            for dx, dy in [(0,1), (0,-1), (1,0), (-1,0), (1,1), (-1,-1), (1,-1), (-1,1)]:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in visited:
+                    queue.append((nx, ny))
     
-#     img.putalpha(mask)
-#     alpha = img.split()[3]
-#     alpha = alpha.filter(ImageFilter.GaussianBlur(2))  # blur חזק יותר
-#     img.putalpha(alpha)
+    # ==========================================
+    # מילוי חורים פנימיים (הרעיון שלך!)
+    # ==========================================
     
-#     return img
+    def find_component(start_x, start_y, target_val):
+        """מצא רכיב מקושר"""
+        comp_queue = deque([(start_x, start_y)])
+        comp_pixels = []
+        touches_edge = False
+        temp_visited = set()
+        
+        while comp_queue:
+            cx, cy = comp_queue.popleft()
+            
+            if cx < 0 or cx >= width or cy < 0 or cy >= height:
+                continue
+            if (cx, cy) in temp_visited:
+                continue
+            if mask_pixels[cx, cy] != target_val:
+                continue
+            
+            temp_visited.add((cx, cy))
+            comp_pixels.append((cx, cy))
+            
+            if cx == 0 or cx == width-1 or cy == 0 or cy == height-1:
+                touches_edge = True
+            
+            for dx, dy in [(0,1), (0,-1), (1,0), (-1,0)]:
+                comp_queue.append((cx + dx, cy + dy))
+        
+        return comp_pixels, touches_edge
+    
+    # מצא חורים פנימיים ומלא אותם
+    checked = set()
+    for y in range(1, height-1):
+        for x in range(1, width-1):
+            if (x, y) not in checked and mask_pixels[x, y] == 0:
+                component, touches_edge = find_component(x, y, 0)
+                checked.update(component)
+                
+                if not touches_edge:
+                    # זה חור פנימי - מלא אותו!
+                    for px, py in component:
+                        mask_pixels[px, py] = 255
+    
+    # Blur לקצוות רכים
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=2))
+    
+    # החלת המסכה
+    img.putalpha(mask)
+    
+    return img
 
 def arrange_center_out(items):
     """סידור מרכז-החוצה - הגבוה באמצע"""
@@ -322,7 +370,7 @@ def arrange_center_out(items):
     return left + center + right
 
 def create_professional_collage(basket: Dict) -> Image:
-    """יצירת קולאז' אולפני מקצועי"""
+    """יצירת קולאז' אולפני מקצועי - מהיר!"""
     products = basket['products']
     images_data = []
     headers = {'User-Agent': 'Mozilla/5.0'}
@@ -353,12 +401,12 @@ def create_professional_collage(basket: Dict) -> Image:
         error_details = "\n".join(download_errors[:5])
         raise ValueError(f"לא הצלחתי להוריד תמונות.\n\n{error_details}")
     
-    print(f"🎨 מעבד {len(images_data)} תמונות...")
+    print(f"🎨 מעבד {len(images_data)} תמונות (מהיר!)...")
     
     processed_images = []
     for img, height_cm in images_data:
         try:
-            img_no_bg = remove_background_smart(img)
+            img_no_bg = remove_background_advanced(img)
             alpha = img_no_bg.getchannel('A')
             bbox = alpha.getbbox()
             if bbox:
@@ -402,13 +450,10 @@ def create_professional_collage(basket: Dict) -> Image:
     
     print(f"🎬 יוצר רקע אולפני...")
     
-    # ==========================================
-    # רקע אולפני מקצועי עם תאורה ריאליסטית
-    # ==========================================
-    
+    # רקע אולפני מקצועי
     final_bg = Image.new("RGB", (canvas_w, canvas_h), (248, 248, 250))
     
-    # גרדיאנט רדיאלי (ספוטלייט)
+    # גרדיאנט רדיאלי
     center_x_light = canvas_w // 2
     center_y_light = canvas_h * 0.3
     max_radius = math.sqrt((canvas_w/2)**2 + (canvas_h)**2)
@@ -434,10 +479,6 @@ def create_professional_collage(basket: Dict) -> Image:
     final_bg = final_bg.filter(ImageFilter.GaussianBlur(radius=2))
     
     print(f"💫 מוסיף צללים ריאליסטיים...")
-    
-    # ==========================================
-    # סידור מוצרים עם צללים טבעיים
-    # ==========================================
     
     # שכבת צללים
     shadow_layer = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
@@ -471,7 +512,7 @@ def create_professional_collage(basket: Dict) -> Image:
             
             all_positions.append({'img': prod, 'x': px, 'y': int(py)})
             
-            # צל ריאליסטי מהמוצר
+            # צל ריאליסטי
             shadow = prod.copy()
             shadow_data = []
             for item in shadow.getdata():
@@ -481,25 +522,19 @@ def create_professional_collage(basket: Dict) -> Image:
                     shadow_data.append((20, 20, 20, 80))
             shadow.putdata(shadow_data)
             
-            # הטיית הצל
             shadow_w = int(prod.width * 1.05)
             shadow_h = int(prod.height * 0.25)
             shadow = shadow.resize((shadow_w, shadow_h), Image.LANCZOS)
             
-            # הדבקת צל
             shadow_x = px + 18
             shadow_y = py + prod.height + 15
             shadow_layer.paste(shadow, (shadow_x, shadow_y), shadow)
             
             current_x += prod.width - int(prod.width * OVERLAP)
     
-    # טשטוש צללים
     shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=28))
-    
-    # שילוב
     final_bg.paste(shadow_layer, (0, 0), shadow_layer)
     
-    # הדבקת מוצרים
     for pos in all_positions:
         final_bg.paste(pos['img'], (pos['x'], pos['y']), pos['img'])
     
@@ -521,7 +556,6 @@ def create_professional_collage(basket: Dict) -> Image:
     
     print(f"✨ שיפורים...")
     
-    # שיפורי תמונה
     final_bg = ImageEnhance.Contrast(final_bg).enhance(1.18)
     final_bg = ImageEnhance.Sharpness(final_bg).enhance(1.22)
     final_bg = ImageEnhance.Brightness(final_bg).enhance(1.04)
@@ -542,9 +576,9 @@ def create_professional_collage(basket: Dict) -> Image:
 def home():
     return jsonify({
         "status": "running",
-        "service": "Smart Gift Basket Engine - Professional Studio",
-        "version": "3.0",
-        "features": ["AI recommendations", "Professional collages", "Realistic shadows"]
+        "service": "Smart Gift Basket Engine - Fast Edition",
+        "version": "4.0",
+        "features": ["AI recommendations", "Fast collages", "Advanced background removal"]
     })
 
 @app.route('/health', methods=['GET'])
@@ -552,7 +586,7 @@ def health():
     return jsonify({
         "status": "healthy",
         "sheets_access": "public",
-        "default_sheet_id": DEFAULT_SPREADSHEET_ID
+        "processing_speed": "ultra-fast"
     })
 
 @app.route('/recommend-basket', methods=['POST'])
@@ -568,7 +602,7 @@ def recommend_basket():
         sheet_name = data.get('sheet_name', SHEET_NAME)
         
         print(f"\n{'='*60}")
-        print(f"🎁 מתחיל המלצה חכמה")
+        print(f"🎁 מתחיל המלצה חכמה - Fast Edition")
         print(f"{'='*60}\n")
         
         products = get_products_from_public_sheet(spreadsheet_id, sheet_name)
@@ -617,7 +651,7 @@ def recommend_basket():
         
         explanation = generate_explanation(basket, criteria)
         
-        print(f"🎨 יוצר תמונה מקצועית...\n")
+        print(f"🎨 יוצר תמונה מקצועית (מהיר!)...\n")
         collage_image = create_professional_collage(basket)
         
         buf = io.BytesIO()
@@ -650,12 +684,13 @@ def recommend_basket():
             "metadata": {
                 "total_products_searched": len(products),
                 "categories_in_basket": basket['categories'],
-                "colors_in_basket": basket['colors']
+                "colors_in_basket": basket['colors'],
+                "processing_time": "⚡ Ultra-fast!"
             }
         }
         
         print(f"\n{'='*60}")
-        print(f"✅ הצלחה!")
+        print(f"✅ הצלחה! ⚡ סופר מהיר!")
         print(f"{'='*60}\n")
         
         return jsonify(response)
