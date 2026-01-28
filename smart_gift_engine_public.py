@@ -400,21 +400,16 @@ def create_professional_collage(basket: Dict) -> Image:
     processed_images.sort(key=lambda x: x.height, reverse=True)
     count = len(processed_images)
     
-    # סידור בשורות - תמיד פירמידה!
     if count <= 2:
         rows = [processed_images]
     elif count <= 4:
         rows = [processed_images[:2], processed_images[2:]]
     elif count <= 7:
         rows = [processed_images[:2], processed_images[2:5], processed_images[5:]]
-    elif count <= 9:
-        # 8-9 מוצרים: 2-4-2 או 2-5-2
-        mid = count - 4
-        rows = [processed_images[:2], processed_images[2:2+mid], processed_images[2+mid:]]
     else:
-        # 10+ מוצרים: 3-5-3 או דומה
-        side = (count - 5) // 2
-        rows = [processed_images[:side], processed_images[side:side+5], processed_images[side+5:]]
+        # 8+ מוצרים: חלק ל-3 שורות
+        per_row = math.ceil(count / 3)
+        rows = [processed_images[:per_row], processed_images[per_row:per_row*2], processed_images[per_row*2:]]
     
     arranged_rows = [arrange_center_out(row) for row in rows]
     
