@@ -223,7 +223,7 @@ def generate_explanation(basket: Dict, criteria: Dict) -> str:
 
 def remove_background_conservative(img):
     """
-    הסרת רקע שמרנית - לא נוגע בחלקים פנימיים!
+    הסרת רקע מהקוד שעובד - ללא שינויים!
     """
     img = img.convert("RGBA")
     width, height = img.size
@@ -232,46 +232,34 @@ def remove_background_conservative(img):
     mask = Image.new('L', (width, height), 255)
     mask_pixels = mask.load()
     
-    # דגימה רק מהשוליים החיצוניים
     edge_colors = []
-    for x in range(width):
+    for x in range(0, width, max(1, width//20)):
         edge_colors.append(pixels[x, 0][:3])
         edge_colors.append(pixels[x, height-1][:3])
-    for y in range(height):
+    for y in range(0, height, max(1, height//20)):
         edge_colors.append(pixels[0, y][:3])
         edge_colors.append(pixels[width-1, y][:3])
     
     avg_bg = tuple(sum(c[i] for c in edge_colors) // len(edge_colors) for i in range(3))
     
-    # Flood fill שמרני - רק מהשוליים פנימה
     visited = set()
     queue = deque()
     
-    # התחל רק מהשוליים
     for x in range(width):
-        if (x, 0) not in visited:
-            queue.append((x, 0))
-        if (x, height-1) not in visited:
-            queue.append((x, height-1))
-    for y in range(1, height-1):
-        if (0, y) not in visited:
-            queue.append((0, y))
-        if (width-1, y) not in visited:
-            queue.append((width-1, y))
+        queue.append((x, 0))
+        queue.append((x, height-1))
+    for y in range(height):
+        queue.append((0, y))
+        queue.append((width-1, y))
     
-    threshold = 75  # יותר אגרסיבי
-    max_iterations = width * height // 4  # הגבלת איטרציות
-    iterations = 0
+    threshold = 45
     
-    while queue and iterations < max_iterations:
-        iterations += 1
+    while queue:
         x, y = queue.popleft()
         
-        if x < 0 or x >= width or y < 0 or y >= height:
+        if (x, y) in visited or x < 0 or x >= width or y < 0 or y >= height:
             continue
-        if (x, y) in visited:
-            continue
-        
+            
         visited.add((x, y))
         
         r, g, b = pixels[x, y][:3]
@@ -279,15 +267,15 @@ def remove_background_conservative(img):
         
         if diff < threshold:
             mask_pixels[x, y] = 0
-            
             for dx, dy in [(0,1), (0,-1), (1,0), (-1,0)]:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < width and 0 <= ny < height and (nx, ny) not in visited:
                     queue.append((nx, ny))
     
-    # Blur עדין לקצוות
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=1))
     img.putalpha(mask)
+    alpha = img.split()[3]
+    alpha = alpha.filter(ImageFilter.GaussianBlur(0.5))
+    img.putalpha(alpha)
     
     return img
 
@@ -421,7 +409,7 @@ def create_professional_collage(basket: Dict) -> Image:
     
     center_x = canvas_w // 2
     floor_y = canvas_h - 80
-    OVERLAP = 0.09
+    OVERLAP = 0.12  # הגדל חפיפה מ-0.09 ל-0.12
     DEPTH = 0.88
     
     all_positions = []
