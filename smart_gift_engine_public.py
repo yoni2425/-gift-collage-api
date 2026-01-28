@@ -312,9 +312,8 @@ def create_professional_collage(basket: Dict) -> Image:
             img_resp = requests.get(
                 url, 
                 headers=headers, 
-                timeout=15,  # חזרה ל-15
+                timeout=15,
                 allow_redirects=True,
-                max_redirects=5,  # הגבלת redirects
                 stream=True
             )
             
@@ -400,17 +399,32 @@ def create_professional_collage(basket: Dict) -> Image:
     processed_images.sort(key=lambda x: x.height, reverse=True)
     count = len(processed_images)
     
-    if count <= 2:
+    # סידור בטרפז הופכי - רחב מקדימה, תמיד ממורכז!
+    if count <= 3:
+        # 1-3 מוצרים: שורה אחת
         rows = [processed_images]
-    elif count <= 4:
+    elif count == 4:
+        # 4 מוצרים: 1 מאחור, 3 מקדימה
+        rows = [processed_images[:1], processed_images[1:]]
+    elif count <= 6:
+        # 5-6: 2 מאחור, 3-4 מקדימה
         rows = [processed_images[:2], processed_images[2:]]
-    elif count <= 7:
-        rows = [processed_images[:2], processed_images[2:5], processed_images[5:]]
+    elif count <= 9:
+        # 7-9: 2-3 מאחור, 3-4 אמצע, שאר מקדימה
+        if count == 7:
+            rows = [processed_images[:2], processed_images[2:4], processed_images[4:]]  # 2-2-3
+        elif count == 8:
+            rows = [processed_images[:2], processed_images[2:5], processed_images[5:]]  # 2-3-3
+        else:  # 9
+            rows = [processed_images[:3], processed_images[3:6], processed_images[6:]]  # 3-3-3
+    elif count <= 12:
+        # 10-12: 3 מאחור, 4 אמצע, שאר מקדימה
+        rows = [processed_images[:3], processed_images[3:7], processed_images[7:]]
     else:
-        # 8+ מוצרים: חלק ל-3 שורות
-        per_row = math.ceil(count / 3)
-        rows = [processed_images[:per_row], processed_images[per_row:per_row*2], processed_images[per_row*2:]]
+        # 13+: 3 מאחור, 5 אמצע, שאר מקדימה
+        rows = [processed_images[:3], processed_images[3:8], processed_images[8:]]
     
+    # סידור כל שורה ממרכז החוצה (הגבוה באמצע)
     arranged_rows = [arrange_center_out(row) for row in rows]
     
     # קנבס קטן יותר!
