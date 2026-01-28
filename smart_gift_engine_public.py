@@ -312,30 +312,43 @@ def create_professional_collage(basket: Dict) -> Image:
             img_resp = requests.get(
                 url, 
                 headers=headers, 
-                timeout=20,  # יותר זמן
-                allow_redirects=True,  # אפשר redirects
-                stream=True  # יעיל יותר
+                timeout=15,  # חזרה ל-15
+                allow_redirects=True,
+                max_redirects=5,  # הגבלת redirects
+                stream=True
             )
             
             if img_resp.status_code == 200:
                 try:
-                    img = Image.open(io.BytesIO(img_resp.content))
+                    # קריאת התוכן עם הגבלת גודל
+                    content = img_resp.content[:10*1024*1024]  # מקס 10MB
+                    
+                    # נסה לפתוח
+                    img = Image.open(io.BytesIO(content))
+                    
+                    # ודא שהתמונה תקינה
+                    img.verify()
+                    
+                    # טען מחדש אחרי verify
+                    img = Image.open(io.BytesIO(content))
+                    
                     images_data.append((img, product['height_cm'], product['name']))
                     print(f"      ✅")
+                    
                 except Exception as img_error:
-                    print(f"      ❌ שגיאה בפענוח תמונה: {str(img_error)[:50]}")
+                    print(f"      ❌ תמונה: {str(img_error)[:35]}")
                     continue
             else:
                 print(f"      ❌ HTTP {img_resp.status_code}")
                 
         except requests.exceptions.TooManyRedirects:
-            print(f"      ❌ יותר מדי redirects")
+            print(f"      ❌ redirects")
             continue
         except requests.exceptions.Timeout:
             print(f"      ❌ timeout")
             continue
         except Exception as e:
-            print(f"      ❌ {str(e)[:50]}")
+            print(f"      ❌ {str(e)[:35]}")
             continue
     
     if not images_data:
@@ -347,21 +360,36 @@ def create_professional_collage(basket: Dict) -> Image:
     for img, height_cm, name in images_data:
         try:
             print(f"   מעבד: {name[:25]}...")
+            
+            # הסר רקע
             img_no_bg = remove_background_conservative(img)
+            
+            # בדוק מה נשאר
             alpha = img_no_bg.getchannel('A')
             bbox = alpha.getbbox()
-            if bbox:
-                img_no_bg = img_no_bg.crop(bbox)
             
+            if not bbox:
+                print(f"      ❌ כל התמונה נמחקה!")
+                continue
+                
+            # חתוך
+            img_cropped = img_no_bg.crop(bbox)
+            
+            # לוג: גודל אמיתי לפני resize
+            real_height = img_cropped.height
+            real_width = img_cropped.width
+            
+            # Resize לפי height_cm
             target_height_px = int(height_cm * PIXELS_PER_CM)
-            aspect = img_no_bg.width / img_no_bg.height
+            aspect = real_width / real_height
             target_width_px = int(target_height_px * aspect)
-            img_resized = img_no_bg.resize((target_width_px, target_height_px), Image.LANCZOS)
+            img_resized = img_cropped.resize((target_width_px, target_height_px), Image.LANCZOS)
             
             processed_images.append(img_resized)
-            print(f"      ✅")
+            print(f"      ✅ {real_width}x{real_height} → {target_width_px}x{target_height_px}")
+            
         except Exception as e:
-            print(f"      ❌ {str(e)}")
+            print(f"      ❌ {str(e)[:35]}")
             continue
     
     if not processed_images:
@@ -372,15 +400,21 @@ def create_professional_collage(basket: Dict) -> Image:
     processed_images.sort(key=lambda x: x.height, reverse=True)
     count = len(processed_images)
     
+    # סידור בשורות - תמיד פירמידה!
     if count <= 2:
         rows = [processed_images]
     elif count <= 4:
         rows = [processed_images[:2], processed_images[2:]]
     elif count <= 7:
         rows = [processed_images[:2], processed_images[2:5], processed_images[5:]]
+    elif count <= 9:
+        # 8-9 מוצרים: 2-4-2 או 2-5-2
+        mid = count - 4
+        rows = [processed_images[:2], processed_images[2:2+mid], processed_images[2+mid:]]
     else:
-        per_row = math.ceil(count / 3)
-        rows = [processed_images[:per_row], processed_images[per_row:per_row*2], processed_images[per_row*2:]]
+        # 10+ מוצרים: 3-5-3 או דומה
+        side = (count - 5) // 2
+        rows = [processed_images[:side], processed_images[side:side+5], processed_images[side+5:]]
     
     arranged_rows = [arrange_center_out(row) for row in rows]
     
