@@ -435,32 +435,44 @@ def create_professional_collage(basket: Dict) -> Image:
     
     print(f"🎬 יוצר רקע...")
     
-    # רקע עדין יותר
-    final_bg = Image.new("RGB", (canvas_w, canvas_h), (252, 252, 253))
+    # רקע בז' חם מקצועי (כמו Gemini!)
+    base_color_r = 235  # בז' חם
+    base_color_g = 225
+    base_color_b = 210
     
-    # גרדיאנט עדין מאוד
-    center_x_light = canvas_w // 2
-    center_y_light = canvas_h * 0.35
-    max_radius = math.sqrt((canvas_w/2)**2 + (canvas_h)**2)
+    final_bg = Image.new("RGB", (canvas_w, canvas_h), (base_color_r, base_color_g, base_color_b))
+    
+    # גרדיאנט רדיאלי עדין - תאורה מהצד העליון
+    center_x_light = canvas_w * 0.4  # לא במרכז - מהצד!
+    center_y_light = canvas_h * 0.25  # למעלה
+    max_radius = math.sqrt((canvas_w)**2 + (canvas_h)**2)
     
     for y in range(canvas_h):
         for x in range(canvas_w):
+            # מרחק מנקודת האור
             dist = math.sqrt((x - center_x_light)**2 + (y - center_y_light)**2)
-            brightness = 1 - (dist / max_radius) * 0.12  # עדין יותר
-            base = 252
-            val = int(base * brightness)
-            final_bg.putpixel((x, y), (val, val, val + 1))
+            brightness = 1 - (dist / max_radius) * 0.15  # gradient עדין מאוד
+            
+            # צבע עם gradient
+            r = int(base_color_r * brightness)
+            g = int(base_color_g * brightness)
+            b = int(base_color_b * brightness)
+            
+            final_bg.putpixel((x, y), (r, g, b))
     
-    # מרקם מינימלי
+    # מרקם עדין מאוד
     random.seed(42)
-    for y in range(0, canvas_h, 3):
-        for x in range(0, canvas_w, 3):
-            if random.random() < 0.15:
+    for y in range(0, canvas_h, 4):
+        for x in range(0, canvas_w, 4):
+            if random.random() < 0.12:
                 current = final_bg.getpixel((x, y))
                 noise = random.randint(-2, 2)
-                new_val = max(0, min(255, current[0] + noise))
-                final_bg.putpixel((x, y), (new_val, new_val, new_val))
+                new_r = max(0, min(255, current[0] + noise))
+                new_g = max(0, min(255, current[1] + noise))
+                new_b = max(0, min(255, current[2] + noise))
+                final_bg.putpixel((x, y), (new_r, new_g, new_b))
     
+    # Blur קל מאוד
     final_bg = final_bg.filter(ImageFilter.GaussianBlur(radius=1.5))
     
     print(f"💫 מוסיף צללים...")
@@ -469,7 +481,7 @@ def create_professional_collage(basket: Dict) -> Image:
     
     center_x = canvas_w // 2
     floor_y = canvas_h - 80
-    OVERLAP = 0.12  # הגדל חפיפה מ-0.09 ל-0.12
+    OVERLAP = 0.12
     DEPTH = 0.88
     
     all_positions = []
@@ -487,8 +499,27 @@ def create_professional_collage(basket: Dict) -> Image:
         if len(scaled_row) > 1:
             total_row_w -= int(scaled_row[0].width * OVERLAP) * (len(scaled_row) - 1)
         
-        current_x = center_x - total_row_w // 2
-        row_y_offset = row_idx * 20
+        # בדיקה חכמה: האם השורה הזו מסתירה את מה שמאחור?
+        x_offset = 0
+        if row_idx > 0 and len(arranged_rows) > 1:
+            # יש שורה מאחורינו - בדוק אם אנחנו גבוהים מדי
+            prev_row = arranged_rows[row_idx - 1]
+            if prev_row and scaled_row:
+                # גובה מקסימלי של השורה הנוכחית
+                current_max_h = max(p.height for p in scaled_row)
+                # גובה מקסימלי של השורה הקודמת (אחורה)
+                prev_max_h = max(p.height for p in prev_row) * depth_factor
+                
+                # אם אנחנו > 60% מהגובה האחורי - הזז לצד!
+                coverage_ratio = current_max_h / prev_max_h if prev_max_h > 0 else 0
+                
+                if coverage_ratio > 0.6:
+                    # הסתרה חמורה - הזז 40px לצד
+                    x_offset = 40
+                    print(f"      ⚠️ שורה {row_idx + 1} גבוהה ({coverage_ratio:.0%}) - הזזה לצד!")
+        
+        current_x = center_x - total_row_w // 2 + x_offset
+        row_y_offset = row_idx * 25  # מרווח קבוע קטן
         
         for prod in scaled_row:
             py = floor_y - prod.height + row_y_offset
@@ -496,30 +527,30 @@ def create_professional_collage(basket: Dict) -> Image:
             
             all_positions.append({'img': prod, 'x': px, 'y': int(py)})
             
-            # צל טבעי יותר
+            # צל אמיתי כהה וחד (כמו Gemini!)
             shadow = prod.copy()
             shadow_data = []
             for item in shadow.getdata():
                 if len(item) == 4:
-                    # צל כהה יותר (40% במקום 25%)
-                    shadow_data.append((20, 20, 20, int(item[3] * 0.40)))
+                    # צל כהה מאוד - 60% opacity!
+                    shadow_data.append((10, 10, 10, int(item[3] * 0.60)))
                 else:
-                    shadow_data.append((20, 20, 20, 100))
+                    shadow_data.append((10, 10, 10, 150))
             shadow.putdata(shadow_data)
             
-            # צל גדול יותר ונמוך יותר
-            shadow_w = int(prod.width * 1.0)  # רוחב מלא
-            shadow_h = int(prod.height * 0.25)
+            # צל גדול וצמוד
+            shadow_w = int(prod.width * 1.1)  # קצת יותר רחב
+            shadow_h = int(prod.height * 0.22)  # נמוך יותר
             shadow = shadow.resize((shadow_w, shadow_h), Image.LANCZOS)
             
-            # מיקום צל - יותר למטה
-            shadow_x = px + 8
-            shadow_y = py + prod.height + 15
+            # מיקום צל - צמוד למוצר
+            shadow_x = px + 5
+            shadow_y = py + prod.height + 10
             shadow_layer.paste(shadow, (shadow_x, shadow_y), shadow)
             
             current_x += prod.width - int(prod.width * OVERLAP)
     
-    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=25))  # טשטוש חזק יותר
+    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=18))  # פחות טשטוש = חד יותר
     final_bg.paste(shadow_layer, (0, 0), shadow_layer)
     
     for pos in all_positions:
