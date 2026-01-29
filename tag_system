@@ -10,7 +10,7 @@ Tag System with Smart Scoring
 OCCASION_TAGS = {
     "משלוח מנות": {
         "keywords": ["משלוח מנות", "פורים", "שלח מנות", "purim"],
-        "preferred_categories": ["snacks", "candy", "chocolate", "cookies"],
+        "preferred_categories": ["snacks", "candy", "chocolate", "cookies","wine"],
         "score_boost": 50,
         "must_have_kosher": True,
         "avoid": ["wine", "coffee", "spirits"]
