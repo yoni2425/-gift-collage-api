@@ -1,0 +1,309 @@
+"""
+🏷️ מערכת תגיות וניקוד מתקדמת
+Tag System with Smart Scoring
+"""
+
+# ============================================================
+# הגדרות תגיות עם ניקוד
+# ============================================================
+
+OCCASION_TAGS = {
+    "משלוח מנות": {
+        "keywords": ["משלוח מנות", "פורים", "שלח מנות", "purim"],
+        "preferred_categories": ["snacks", "candy", "chocolate", "cookies"],
+        "score_boost": 50,
+        "must_have_kosher": True,
+        "avoid": ["wine", "coffee", "spirits"]
+    },
+    "חנוכה": {
+        "keywords": ["חנוכה", "חג האורים", "chanukah", "hanukkah"],
+        "preferred_categories": ["chocolate", "wine", "accessories", "cookies"],
+        "score_boost": 40,
+        "must_have_kosher": True
+    },
+    "ראש השנה": {
+        "keywords": ["ראש השנה", "שנה טובה", "ר\"ה", "rosh hashanah"],
+        "preferred_categories": ["wine", "honey", "chocolate", "dried_fruits"],
+        "score_boost": 45,
+        "must_have_kosher": True
+    },
+    "יום הולדת": {
+        "keywords": ["יום הולדת", "יומולדת", "birthday", "בירת'דיי"],
+        "preferred_categories": ["chocolate", "wine", "candy", "accessories"],
+        "score_boost": 30
+    },
+    "חתונה": {
+        "keywords": ["חתונה", "נישואין", "wedding"],
+        "preferred_categories": ["wine", "accessories", "spirits"],
+        "score_boost": 40,
+        "style_preference": ["luxury", "elegant"]
+    }
+}
+
+RECIPIENT_TAGS = {
+    "ילדים": {
+        "keywords": ["ילד", "ילדים", "ילדה", "בן", "בת", "kids", "children"],
+        "preferred_categories": ["candy", "chocolate", "snacks"],
+        "score_boost": 40,
+        "avoid": ["wine", "coffee", "spirits"]
+    },
+    "נשים": {
+        "keywords": ["אישה", "אמא", "אחות", "חברה", "women", "woman"],
+        "preferred_categories": ["chocolate", "wine", "tea"],
+        "score_boost": 30
+    },
+    "גברים": {
+        "keywords": ["גבר", "אבא", "אח", "חבר", "men", "man"],
+        "preferred_categories": ["wine", "coffee", "spirits"],
+        "score_boost": 30
+    },
+    "משפחה": {
+        "keywords": ["משפחה", "family", "הורים"],
+        "preferred_categories": ["snacks", "chocolate", "wine", "cookies"],
+        "score_boost": 30,
+        "variety_important": True
+    }
+}
+
+STYLE_TAGS = {
+    "כיפי": {
+        "keywords": ["כיף", "כיפי", "fun", "צעיר", "מהנה"],
+        "preferred_categories": ["snacks", "candy", "chocolate"],
+        "score_boost": 35
+    },
+    "יוקרתי": {
+        "keywords": ["יוקרתי", "luxury", "מפנק", "יוקרה", "אקסקלוסיבי"],
+        "preferred_categories": ["wine", "spirits", "chocolate"],
+        "score_boost": 30
+    },
+    "בריא": {
+        "keywords": ["בריא", "healthy", "דיאטה", "fit", "אורגני"],
+        "preferred_categories": ["nuts", "dried_fruits", "tea"],
+        "score_boost": 30,
+        "avoid": ["candy", "chocolate"]
+    }
+}
+
+FOOD_PREFERENCE_TAGS = {
+    "חטיף": {
+        "keywords": ["חטיף", "חטיפים", "snack", "נשנוש"],
+        "categories": ["snacks"],
+        "score_boost": 45,
+        "occasions_boost": {
+            "משלוח מנות": 25
+        }
+    },
+    "שוקולד": {
+        "keywords": ["שוקולד", "chocolate", "קקאו"],
+        "categories": ["chocolate"],
+        "score_boost": 40,
+        "occasions_boost": {
+            "משלוח מנות": 20
+        }
+    },
+    "ממתקים": {
+        "keywords": ["ממתק", "ממתקים", "candy", "סוכריות"],
+        "categories": ["candy", "sweets"],
+        "score_boost": 40,
+        "occasions_boost": {
+            "משלוח מנות": 25
+        }
+    },
+    "יין": {
+        "keywords": ["יין", "wine", "אלכוהול"],
+        "categories": ["wine"],
+        "score_boost": 35
+    },
+    "עוגיות": {
+        "keywords": ["עוגיה", "עוגיות", "cookies", "ביסקוויט"],
+        "categories": ["cookies"],
+        "score_boost": 35,
+        "occasions_boost": {
+            "משלוח מנות": 20
+        }
+    }
+}
+
+DIETARY_TAGS = {
+    "כשר": {
+        "keywords": ["כשר", "kosher", "כשרות"],
+        "required_attribute": "kosher",
+        "is_mandatory": True
+    },
+    "טבעוני": {
+        "keywords": ["טבעוני", "vegan", "צמחוני"],
+        "required_attribute": "vegan",
+        "is_mandatory": True
+    },
+    "ללא גלוטן": {
+        "keywords": ["ללא גלוטן", "gluten free", "celiac"],
+        "required_attribute": "gluten-free",
+        "is_mandatory": True
+    }
+}
+
+# ============================================================
+# פונקציות עזר
+# ============================================================
+
+def extract_tags_from_text(user_text: str) -> dict:
+    """
+    מחלץ תגיות מטקסט חופשי של המשתמש
+    """
+    text_lower = user_text.lower()
+    
+    extracted = {
+        'occasion': None,
+        'recipient': None,
+        'style': None,
+        'food_preferences': [],
+        'dietary': []
+    }
+    
+    # חפש אירוע
+    for occasion, info in OCCASION_TAGS.items():
+        for keyword in info['keywords']:
+            if keyword.lower() in text_lower:
+                extracted['occasion'] = occasion
+                break
+        if extracted['occasion']:
+            break
+    
+    # חפש נמען
+    for recipient, info in RECIPIENT_TAGS.items():
+        for keyword in info['keywords']:
+            if keyword.lower() in text_lower:
+                extracted['recipient'] = recipient
+                break
+        if extracted['recipient']:
+            break
+    
+    # חפש סגנון
+    for style, info in STYLE_TAGS.items():
+        for keyword in info['keywords']:
+            if keyword.lower() in text_lower:
+                extracted['style'] = style
+                break
+        if extracted['style']:
+            break
+    
+    # חפש העדפות מזון (יכול להיות כמה!)
+    for food_pref, info in FOOD_PREFERENCE_TAGS.items():
+        for keyword in info['keywords']:
+            if keyword.lower() in text_lower:
+                if food_pref not in extracted['food_preferences']:
+                    extracted['food_preferences'].append(food_pref)
+                break
+    
+    # חפש דרישות תזונה
+    for dietary, info in DIETARY_TAGS.items():
+        for keyword in info['keywords']:
+            if keyword.lower() in text_lower:
+                if dietary not in extracted['dietary']:
+                    extracted['dietary'].append(dietary)
+                break
+    
+    return extracted
+
+
+def calculate_product_score(product: dict, extracted_tags: dict) -> tuple:
+    """
+    מחשב ציון התאמה מפורט למוצר
+    Returns: (score, reasons)
+    """
+    score = 0
+    reasons = []
+    
+    # 1. בדיקת דרישות תזונה - קריטי!
+    for dietary in extracted_tags.get('dietary', []):
+        dietary_info = DIETARY_TAGS.get(dietary, {})
+        if dietary_info.get('is_mandatory'):
+            required = dietary_info.get('required_attribute')
+            product_dietary = product.get('dietary', '').lower()
+            
+            if required not in product_dietary:
+                return 0, [f"❌ לא {dietary}"]
+            else:
+                reasons.append(f"✅ {dietary}")
+    
+    # 2. אירוע - ציון גבוה!
+    occasion = extracted_tags.get('occasion')
+    if occasion:
+        occasion_info = OCCASION_TAGS.get(occasion, {})
+        
+        # בדוק אם בעמודה occasions
+        product_occasions = product.get('occasions', '').lower()
+        if occasion.lower() in product_occasions or any(kw.lower() in product_occasions for kw in occasion_info.get('keywords', [])):
+            score += occasion_info.get('score_boost', 0)
+            reasons.append(f"🎉 מושלם ל-{occasion}")
+            
+            # בדוק בונוס ספציפי בעמודה
+            if occasion == "משלוח מנות" and product.get('mishloach_manot_score', 0) > 0:
+                bonus = product.get('mishloach_manot_score', 0)
+                score += bonus
+                reasons.append(f"💎 בונוס משלוח מנות: +{bonus}")
+        
+        # בדוק קטגוריה מתאימה
+        elif product.get('category') in occasion_info.get('preferred_categories', []):
+            base = occasion_info.get('score_boost', 0) // 2
+            score += base
+            reasons.append(f"🎯 קטגוריה מתאימה ל-{occasion}")
+        
+        # קנס על קטגוריות לא מתאימות
+        if product.get('category') in occasion_info.get('avoid', []):
+            score -= 30
+            reasons.append(f"⚠️ לא מתאים ל-{occasion}")
+    
+    # 3. נמען
+    recipient = extracted_tags.get('recipient')
+    if recipient:
+        recipient_info = RECIPIENT_TAGS.get(recipient, {})
+        product_recipients = product.get('recipients', '').lower()
+        
+        if recipient.lower() in product_recipients:
+            score += recipient_info.get('score_boost', 0)
+            reasons.append(f"👤 מתאים ל-{recipient}")
+        elif product.get('category') in recipient_info.get('preferred_categories', []):
+            score += recipient_info.get('score_boost', 0) // 2
+    
+    # 4. סגנון
+    style = extracted_tags.get('style')
+    if style:
+        style_info = STYLE_TAGS.get(style, {})
+        product_styles = product.get('styles', '').lower()
+        
+        if style.lower() in product_styles:
+            score += style_info.get('score_boost', 0)
+            reasons.append(f"✨ בסגנון {style}")
+    
+    # 5. העדפות מזון - עם בונוסים!
+    for food_pref in extracted_tags.get('food_preferences', []):
+        food_info = FOOD_PREFERENCE_TAGS.get(food_pref, {})
+        
+        if product.get('category') in food_info.get('categories', []):
+            base_score = food_info.get('score_boost', 0)
+            score += base_score
+            
+            # בונוס נוסף אם יש אירוע מתאים!
+            if occasion:
+                occasion_bonus = food_info.get('occasions_boost', {}).get(occasion, 0)
+                if occasion_bonus > 0:
+                    score += occasion_bonus
+                    reasons.append(f"💎 {food_pref} מושלם ל-{occasion}!")
+            
+            reasons.append(f"❤️ כולל {food_pref}")
+            
+            # בונוס ספציפי מהעמודה snack_score
+            if food_pref == "חטיף" and product.get('snack_score', 0) > 0:
+                snack_bonus = product.get('snack_score', 0)
+                score += snack_bonus
+                reasons.append(f"🎯 בונוס חטיף: +{snack_bonus}")
+    
+    # 6. פופולריות
+    score += product.get('popularity_score', 5)
+    
+    # 7. מוודא שהמוצר במלאי
+    if not product.get('in_stock', True):
+        return 0, ["❌ אזל מהמלאי"]
+    
+    return score, reasons
