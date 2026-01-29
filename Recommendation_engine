@@ -1,0 +1,242 @@
+"""
+🎯 מנוע המלצות חכם
+Smart Recommendation Engine
+"""
+
+from typing import List, Dict, Tuple
+from itertools import combinations
+import csv
+from tag_system import extract_tags_from_text, calculate_product_score
+
+# ============================================================
+# פונקציות עזר
+# ============================================================
+
+def load_products_from_csv(csv_data: str) -> List[Dict]:
+    """
+    טוען מוצרים מ-CSV
+    """
+    import io
+    products = []
+    
+    reader = csv.DictReader(io.StringIO(csv_data))
+    for row in reader:
+        # המר טיפוסים
+        product = {
+            'product_id': row.get('product_id', ''),
+            'name': row.get('name', ''),
+            'image_url': row.get('image_url', ''),
+            'price': float(row.get('price', 0)),
+            'height_cm': float(row.get('height_cm', 10)),
+            'category': row.get('category', ''),
+            'subcategory': row.get('subcategory', ''),
+            'brand': row.get('brand', ''),
+            'occasions': row.get('occasions', ''),
+            'recipients': row.get('recipients', ''),
+            'styles': row.get('styles', ''),
+            'dietary': row.get('dietary', ''),
+            'description': row.get('description', ''),
+            'color_dominant': row.get('color_dominant', ''),
+            'size_category': row.get('size_category', 'small'),
+            'popularity_score': int(row.get('popularity_score', 5)),
+            'in_stock': row.get('in_stock', 'TRUE').upper() == 'TRUE',
+            'mishloach_manot_score': int(row.get('mishloach_manot_score', 0)),
+            'purim_boost': int(row.get('purim_boost', 0)),
+            'chanukah_boost': int(row.get('chanukah_boost', 0)),
+            'snack_score': int(row.get('snack_score', 0))
+        }
+        products.append(product)
+    
+    return products
+
+
+def score_all_products(products: List[Dict], user_text: str) -> List[Dict]:
+    """
+    מחשב ציון לכל המוצרים
+    """
+    # חלץ תגיות מהטקסט
+    extracted_tags = extract_tags_from_text(user_text)
+    
+    scored_products = []
+    for product in products:
+        score, reasons = calculate_product_score(product, extracted_tags)
+        
+        if score > 0:  # רק מוצרים מתאימים!
+            scored_products.append({
+                **product,
+                'match_score': score,
+                'match_reasons': reasons,
+                'extracted_tags': extracted_tags
+            })
+    
+    # מיין לפי ציון
+    scored_products.sort(key=lambda x: x['match_score'], reverse=True)
+    
+    return scored_products
+
+
+def build_balanced_basket(
+    scored_products: List[Dict], 
+    budget: float,
+    target_size: int = None
+) -> Dict:
+    """
+    בונה מארז מאוזן עם מגוון קטגוריות
+    """
+    
+    # אם אין target_size, חשב לפי תקציב
+    if target_size is None:
+        if budget < 100:
+            target_size = 3
+        elif budget < 200:
+            target_size = 5
+        elif budget < 300:
+            target_size = 7
+        else:
+            target_size = 10
+    
+    # חלק לקטגוריות
+    by_category = {}
+    for product in scored_products:
+        cat = product['category']
+        if cat not in by_category:
+            by_category[cat] = []
+        by_category[cat].append(product)
+    
+    # בנה מארז
+    basket_products = []
+    remaining_budget = budget * 0.77  # 77% מהתקציב למוצרים
+    categories_used = set()
+    
+    # שלב 1: קח את המוצרים בעלי הציון הגבוה ביותר
+    for product in scored_products[:target_size * 2]:  # חפש בכפול
+        if len(basket_products) >= target_size:
+            break
+        
+        if product['price'] <= remaining_budget:
+            # העדפה למגוון קטגוריות
+            if product['category'] not in categories_used or len(categories_used) >= 3:
+                basket_products.append(product)
+                remaining_budget -= product['price']
+                categories_used.add(product['category'])
+    
+    # שלב 2: השלם אם חסר
+    if len(basket_products) < target_size:
+        for product in scored_products:
+            if product not in basket_products and product['price'] <= remaining_budget:
+                basket_products.append(product)
+                remaining_budget -= product['price']
+                
+                if len(basket_products) >= target_size:
+                    break
+    
+    # חשב מחיר כולל
+    total_price = sum(p['price'] for p in basket_products)
+    
+    # בדוק אם בתקציב
+    if total_price > budget:
+        # נסה שילוב זול יותר
+        basket_products = find_best_combination(scored_products, budget, target_size)
+        total_price = sum(p['price'] for p in basket_products)
+    
+    # אסוף קטגוריות וצבעים
+    categories = list(set(p['category'] for p in basket_products))
+    colors = list(set(p['color_dominant'] for p in basket_products))
+    
+    return {
+        'products': basket_products,
+        'total_price': total_price,
+        'budget': budget,
+        'categories': categories,
+        'colors': colors,
+        'extracted_tags': basket_products[0]['extracted_tags'] if basket_products else {}
+    }
+
+
+def find_best_combination(
+    scored_products: List[Dict],
+    budget: float,
+    target_size: int
+) -> List[Dict]:
+    """
+    מוצא שילוב אופטימלי של מוצרים בתוך התקציב
+    """
+    best_combo = []
+    best_score = 0
+    
+    # נסה שילובים שונים
+    for size in range(target_size, max(2, target_size - 2), -1):
+        # קח רק את ה-20 הטובים ביותר למהירות
+        candidates = scored_products[:20]
+        
+        for combo in combinations(candidates, size):
+            combo_price = sum(p['price'] for p in combo)
+            combo_score = sum(p['match_score'] for p in combo)
+            
+            if combo_price <= budget and combo_score > best_score:
+                best_combo = list(combo)
+                best_score = combo_score
+    
+    return best_combo if best_combo else scored_products[:target_size]
+
+
+def recommend_basket(
+    products: List[Dict],
+    criteria: Dict
+) -> Dict:
+    """
+    פונקציה ראשית - ממליצה על מארז
+    
+    Args:
+        products: רשימת כל המוצרים
+        criteria: {
+            'free_text': str,  # טקסט חופשי מהמשתמש
+            'budget': float,   # תקציב
+            'size': int        # כמות מוצרים (אופציונלי)
+        }
+    
+    Returns:
+        {
+            'products': [...],
+            'total_price': float,
+            'budget': float,
+            'categories': [...],
+            'colors': [...],
+            'extracted_tags': {...}
+        }
+    """
+    user_text = criteria.get('free_text', '')
+    budget = criteria.get('budget', 200)
+    target_size = criteria.get('size')
+    
+    # דרג מוצרים
+    scored_products = score_all_products(products, user_text)
+    
+    if not scored_products:
+        # אם אין התאמות, החזר את הפופולריים ביותר
+        scored_products = sorted(
+            products, 
+            key=lambda x: x.get('popularity_score', 0), 
+            reverse=True
+        )
+    
+    # בנה מארז
+    basket = build_balanced_basket(scored_products, budget, target_size)
+    
+    return basket
+
+
+# ============================================================
+# פונקציות לדוגמה/בדיקה
+# ============================================================
+
+if __name__ == "__main__":
+    # דוגמה לשימוש
+    sample_criteria = {
+        'free_text': 'משלוח מנות כיפי עם חטיפים',
+        'budget': 150,
+        'size': 6
+    }
+    
+    print("🎯 מנוע המלצות מוכן!")
+    print(f"דוגמה: {sample_criteria}")
